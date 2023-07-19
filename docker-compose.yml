@@ -1,0 +1,55 @@
+version: '3'
+
+services:
+
+  mongo:
+    image: mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      - ./mongo:/docker-entrypoint-initdb.d
+  nap-backend:
+    image: nap/backend:v1
+    build:
+      context: backend
+      dockerfile: dockerfile
+    depends_on:
+      - mongo
+    ports:
+      - "8000:8000"
+    restart: always
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [ gpu ]
+  mongo-express:
+    image: mongo-express
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongo
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_MONGODB_ENABLE_ADMIN=true
+      - ME_CONFIG_MONGODB_AUTH_DATABASE=admin
+      - ME_CONFIG_MONGODB_AUTH_USERNAME=root
+      - ME_CONFIG_MONGODB_AUTH_PASSWORD=password
+      - ME_CONFIG_BASICAUTH_USERNAME=user
+      - ME_CONFIG_BASICAUTH_PASSWORD=password
+    depends_on:
+      - mongo
+      - nap-backend
+    ports:
+      - "8888:8081"
+    restart: always
+  nap-frontend:
+    image: nap/frontend:v1
+    build:
+      context: frontend2
+      dockerfile: dockerfile
+    depends_on:
+      - nap-backend
+    ports:
+      - "3000:3000"
+    restart: always
